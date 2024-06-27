@@ -32,20 +32,52 @@ router.post('/checkCredentials', async (req, res) => {
 
 })
 
-router.post('/register', async (req, res) => {
-    /*
-    var transporter = nodemailer.createTransport({
-        service: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
-        auth: {
-          user: process.env.COMPANY_EMAIL,
-          pass: 'yoju pmoi jzmt njvu'
-        }
-    });
-    */
 
-    // still doesnt work, need to allow for less secure apps on google
+
+router.post('/checkUsernameEmail', async(req, res)=>{
+    const valid = {username: true, email: true};
+    const dbconn = await getDBConn();
+
+    try{
+        const sql = 'SELECT * FROM users WHERE username = ?';
+        const values = [req.body.username];
+        const [result] = await dbconn.execute(sql, values)
+
+        if(result.length > 0){
+            valid.username = false
+        }
+    }
+    catch (e){
+        console.log(e)
+        res.status(500).json({response:"bad"});
+        return
+    }
+
+    try{
+        const sql = 'SELECT * FROM users WHERE email = ?';
+        const values = [req.body.email];
+        const [result] = await dbconn.execute(sql, values)
+
+        if(result.length > 0){
+            valid.email = false
+        }
+    }
+    catch (e){
+        console.log(e)
+        res.status(500).json({response:"bad"});
+        return
+    }
+    
+    res.status(200).json({response:'good', validUser: valid.username, validEmail: valid.email})
+      
+})
+
+
+
+router.post('/confirmEmail', async (req, res) => {   
+
+    const confirmationCode = crypto.randomBytes(3).toString('hex');
+    
     var transporter = nodemailer.createTransport({
         service: 'gmail',
         port: 465,
@@ -66,12 +98,30 @@ router.post('/register', async (req, res) => {
         from: process.env.COMPANY_EMAIL,
         to: req.body.email, // list of receivers
         subject: "Confirmation Code for Registration", // Subject line
-        text: "Dummy conf code", // plain text body
-      });
+        text: confirmationCode, // plain text body
+    });
+    
+    console.log("email sent")
+    res.status(200).json({response:"good", confCode: confirmationCode});
+})
 
-      console.log("email sent")
-      res.status(200).json({response:"good"});
-      
+
+
+router.post('/register', async (req, res)=>{
+    const account = req.body.accountDetails
+    const dbconn = await getDBConn()
+
+    try{
+        const sql = 'INSERT INTO users (username, fname, lname, email, password) VALUES (?, ?, ?, ?, ?);';
+        const values = [account.username, account.fname, account.lname, account.email, crypto.createHash('md5').update(account.password).digest("hex")];
+        const [result] = await dbconn.execute(sql, values)
+
+        res.status(200).json({response:"good"}); // should generate token here too
+    }
+    catch (e){
+        console.log(e)
+        res.status(500).json({response:"bad"});
+    }
 })
 
 module.exports = router
