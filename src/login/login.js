@@ -34,13 +34,13 @@ router.post('/checkCredentials', async (req, res) => {
 
 
 
-router.post('/checkUsernameEmail', async(req, res)=>{
+router.get('/checkUsernameEmail', async(req, res)=>{
     const valid = {username: true, email: true};
     const dbconn = await getDBConn();
-
+   
     try{
         const sql = 'SELECT * FROM users WHERE username = ?';
-        const values = [req.body.username];
+        const values = [req.query.username];
         const [result] = await dbconn.execute(sql, values)
 
         if(result.length > 0){
@@ -55,7 +55,7 @@ router.post('/checkUsernameEmail', async(req, res)=>{
 
     try{
         const sql = 'SELECT * FROM users WHERE email = ?';
-        const values = [req.body.email];
+        const values = [req.query.email];
         const [result] = await dbconn.execute(sql, values)
 
         if(result.length > 0){
@@ -72,9 +72,28 @@ router.post('/checkUsernameEmail', async(req, res)=>{
       
 })
 
+router.get('/checkEmail', async(req, res)=>{
+    const dbconn = await getDBConn();
+    let validEmail = false
 
+    try{
+        const sql = 'SELECT * FROM users WHERE email = ?';
+        const values = [req.query.email];
+        const [result] = await dbconn.execute(sql, values)
 
-router.post('/confirmEmail', async (req, res) => {   
+        if(result.length > 0){
+            validEmail = true
+        }
+    }
+    catch (e){
+        console.log(e)
+        res.status(500).json({response:"bad"});
+        return
+    }
+    res.status(200).json({response:'good', validEmail: validEmail})
+})
+
+router.get('/confirmEmail', async (req, res) => {   
 
     const confirmationCode = crypto.randomBytes(3).toString('hex');
     
@@ -96,12 +115,11 @@ router.post('/confirmEmail', async (req, res) => {
 
     const info = await transporter.sendMail({
         from: process.env.COMPANY_EMAIL,
-        to: req.body.email, // list of receivers
-        subject: "Confirmation Code for Registration", // Subject line
+        to: req.query.email, // list of receivers
+        subject: "Confirmation Code for Run It Up", // Subject line
         text: confirmationCode, // plain text body
     });
     
-    console.log("email sent")
     res.status(200).json({response:"good", confCode: confirmationCode});
 })
 
@@ -116,6 +134,22 @@ router.post('/register', async (req, res)=>{
         const values = [account.username, account.fname, account.lname, account.email, crypto.createHash('md5').update(account.password).digest("hex")];
         const [result] = await dbconn.execute(sql, values)
 
+        res.status(200).json({response:"good"}); // should generate token here too
+    }
+    catch (e){
+        console.log(e)
+        res.status(500).json({response:"bad"});
+    }
+})
+
+router.put('/changePassword', async(req, res)=>{
+    const dbconn = await getDBConn()
+    const newPassword = crypto.createHash('md5').update(req.body.password).digest("hex")
+
+    try{
+        const sql = 'UPDATE users SET password = ? WHERE email = ?';
+        const values = [newPassword, req.body.email];
+        const [result] = await dbconn.execute(sql, values)
         res.status(200).json({response:"good"}); // should generate token here too
     }
     catch (e){
