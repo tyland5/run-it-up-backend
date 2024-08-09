@@ -1,8 +1,10 @@
 const express = require('express');
 const app = express();
 const login = require('../src/login/login');
+const post = require('./post/post')
 
 app.use('/login', login);
+app.use('/post', post);
 
 app.use(express.static('public'));
 app.use("/images", express.static('images'))
