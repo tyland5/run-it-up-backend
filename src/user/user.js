@@ -25,6 +25,26 @@ const upload = multer({ storage: storage })
 const router = express.Router()
 router.use(express.json());
 
+router.get("/getBasicUserInfo", async (req, res)=>{
+  const dbconn = await getDBConn();
+  
+  try{
+    let uid = req.query.uid;
+
+    const sql = 'SELECT username, name, email, bio, pfp FROM users WHERE uid = ?';
+    const values = [uid];
+    const [result] = await dbconn.execute(sql, values);
+
+    dbconn.destroy()
+    res.status(200).json({res:result})
+  }
+  catch(e){
+    dbconn.destroy()
+    res.status(500).send()
+  }
+
+})
+
 router.get("/getUserInfo", async (req, res)=>{
     const dbconn = await getDBConn();
     let uid = req.query.uid;

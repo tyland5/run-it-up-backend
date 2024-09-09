@@ -44,10 +44,10 @@ router.post('/checkCredentials', async (req, res) => {
 
 router.get('/checkIfLoggedIn', (req, res) =>{
     if(req.session.uid){
-        res.status(200).json({response:"good"})
+        res.status(200).send()
     }
     else{
-        res.status(401)
+        res.status(401).send()
     }
 })
 
