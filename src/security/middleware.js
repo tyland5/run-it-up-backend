@@ -10,4 +10,14 @@ function verifyCSRF(req, res, next){
     res.status(401).send();
 }
 
-module.exports = {verifyCSRF}
+// middleware for get requests
+function checkIfLoggedIn(req, res, next){
+    if(req.session.uid){
+       next()
+    }
+    else{
+        res.status(401).send()
+    }
+}
+
+module.exports = {verifyCSRF, checkIfLoggedIn}

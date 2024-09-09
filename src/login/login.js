@@ -1,4 +1,5 @@
-const getDBConn = require('../db/dbconn')
+const {pool} = require('../db/dbconn')
+const {checkIfLoggedIn} = require('../security/middleware')
 const express = require('express')
 const nodemailer = require('nodemailer');
 const crypto = require('crypto')
@@ -11,13 +12,11 @@ router.use(express.json());
 
 
 router.post('/checkCredentials', async (req, res) => {
-    const dbconn = await getDBConn()
     
     try{
         const sql = 'SELECT * FROM users WHERE username = ? AND password = ?';
         const values = [req.body.username, crypto.createHash('md5').update(req.body.password).digest("hex")];
-        const [result] = await dbconn.execute(sql, values)
-        dbconn.destroy()
+        const [result] = await pool.execute(sql, values)
 
         if(result.length >= 1){
             // refresh the session
@@ -28,92 +27,73 @@ router.post('/checkCredentials', async (req, res) => {
             const csrf = crypto.randomBytes(8).toString('hex'); // 16 character csrf string
             req.session.csrf = csrf
 
-            res.status(200).json({response:"good", csrfToken: csrf, uid: result[0].uid});
+            res.status(200).json({csrfToken: csrf, uid: result[0].uid});
         }
         else{
-            res.status(200).json({response:"bad"});
+            res.status(401).send();
         }
     }
     catch (e){
-        dbconn.destroy()
         console.log(e)
-        res.status(500).json({response:"bad"});
+        res.status(500).send();
     }
 
 })
 
-router.get('/checkIfLoggedIn', (req, res) =>{
-    if(req.session.uid){
-        res.status(200).send()
-    }
-    else{
-        res.status(401).send()
-    }
+router.get('/checkIfLoggedIn', checkIfLoggedIn, (req, res) =>{
+    // if middleware is successful reaches here, else personally sends a 401
+    res.status(200).json({res:{csrfToken: req.session.csrf, uid:req.session.uid}})
 })
 
 router.get('/checkUsernameEmail', async(req, res)=>{
     const valid = {username: true, email: true};
-    const dbconn = await getDBConn();
    
     try{
         const sql = 'SELECT * FROM users WHERE username = ?';
         const values = [req.query.username];
-        const [result] = await dbconn.execute(sql, values)
+        const [result] = await pool.execute(sql, values)
     
         if(result.length > 0){
             valid.username = false
         }
-    }
-    catch (e){
-        dbconn.destroy()
-        console.log(e)
-        res.status(500).json({response:"bad"});
-        return
-    }
 
-    try{
-        const sql = 'SELECT * FROM users WHERE email = ?';
-        const values = [req.query.email];
-        const [result] = await dbconn.execute(sql, values)
+        const sql2 = 'SELECT * FROM users WHERE email = ?';
+        const values2 = [req.query.email];
+        const [result2] = await pool.execute(sql2, values2)
        
-        dbconn.destroy()
-        if(result.length > 0){
+        if(result2.length > 0){
             valid.email = false
         }
     }
     catch (e){
-        dbconn.destroy()
         console.log(e)
-        res.status(500).json({response:"bad"});
+        res.status(500).send();
         return
     }
     
-    res.status(200).json({response:'good', validUser: valid.username, validEmail: valid.email})
-      
+    res.status(200).json({validUser: valid.username, validEmail: valid.email})
+    
 })
 
 router.get('/checkEmail', async(req, res)=>{
-    const dbconn = await getDBConn();
     let validEmail = false
 
     try{
         const sql = 'SELECT * FROM users WHERE email = ?';
         const values = [req.query.email];
-        const [result] = await dbconn.execute(sql, values)
+        const [result] = await pool.execute(sql, values)
 
         if(result.length > 0){
             validEmail = true
         }
     }
     catch (e){
-        dbconn.destroy()
         console.log(e)
-        res.status(500).json({response:"bad"});
+        res.status(500).send();
         return
     }
 
-    dbconn.destroy()
-    res.status(200).json({response:'good', validEmail: validEmail})
+    res.status(200).json({validEmail: validEmail})
 })
 
 router.get('/confirmEmail', async (req, res) => {   
@@ -136,51 +116,52 @@ router.get('/confirmEmail', async (req, res) => {
         }
     });
 
-    const info = await transporter.sendMail({
-        from: process.env.COMPANY_EMAIL,
-        to: req.query.email, // list of receivers
-        subject: "Confirmation Code for Run It Up", // Subject line
-        text: confirmationCode, // plain text body
-    });
-    
-    res.status(200).json({response:"good", confCode: confirmationCode});
+    try{
+        const info = await transporter.sendMail({
+            from: process.env.COMPANY_EMAIL,
+            to: req.query.email, // list of receivers
+            subject: "Confirmation Code for Run It Up", // Subject line
+            text: confirmationCode, // plain text body
+        });
+        
+        res.status(200).json({confCode: confirmationCode});
+    }
+    catch(e){
+        console.log(e)
+        res.status(500).send()
+    }
 })
 
 
 
 router.post('/register', async (req, res)=>{
     const account = req.body.accountDetails
-    const dbconn = await getDBConn()
 
     try{
         const sql = 'INSERT INTO users (username, name, email, password) VALUES (?, ?, ?, ?);';
         const values = [account.username, account.name, account.email, crypto.createHash('md5').update(account.password).digest("hex")];
-        const [result] = await dbconn.execute(sql, values)
-        dbconn.destroy()
-        res.status(200).json({response:"good"}); // should generate token here too
+        await pool.execute(sql, values)
+
+        res.status(200).send();
     }
     catch (e){
-        dbconn.destroy()
         console.log(e)
-        res.status(500).json({response:"bad"});
+        res.status(500).send();
     }
 })
 
 router.put('/changePassword', async(req, res)=>{
-    const dbconn = await getDBConn()
     const newPassword = crypto.createHash('md5').update(req.body.password).digest("hex")
 
     try{
         const sql = 'UPDATE users SET password = ? WHERE email = ?';
         const values = [newPassword, req.body.email];
-        const [result] = await dbconn.execute(sql, values)
-        dbconn.destroy()
-        res.status(200).json({response:"good"}); // should generate token here too
+        const [result] = await pool.execute(sql, values)
+        res.status(200).send(); 
     }
     catch (e){
-        dbconn.destroy()
         console.log(e)
-        res.status(500).json({response:"bad"});
+        res.status(500).send();
     }
 })
 

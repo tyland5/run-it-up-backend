@@ -7,10 +7,10 @@ var session = require('express-session')
 
 // The order of middleware loading is important: middleware functions that are loaded first are also executed first.
 app.use(session({
-    secret: 'luqkay',
+    secret: 'luqkay', // obv will hide this in future. just a troll secret
     resave: false,
     saveUninitialized: true,
-    cookie: { secure: false, maxAge:604800000  } // requires https connection, expires 1 week
+    cookie: { secure: false, maxAge:604800000  } // doesnt require https connection, expires 1 week
 }))
 
 app.use(express.static('public'));
