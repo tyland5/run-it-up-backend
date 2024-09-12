@@ -55,13 +55,13 @@ router.get('/getPosts', checkIfLoggedIn, async(req, res)=>{
         let sql = `SELECT * FROM post 
             NATURAL LEFT JOIN (select post_id, media_type, GROUP_CONCAT(uri) as uri FROM post_media GROUP BY post_id, media_type) as p 
             NATURAL JOIN (select uid, pfp, name FROM users) as u
-            LEFT JOIN (select post_id as liked FROM likes where uid = 8) as l ON post_id = liked `;
-        const values = []
+            LEFT JOIN (select post_id as liked FROM likes where uid = ?) as l ON post_id = liked `;
+        const values = [req.session.uid]
         if(req.query?.uid){
-            sql += " WHERE uid=?";
+            sql += " WHERE uid=? ";
             values.push(req.query.uid)
         }
-
+        sql += ' ORDER BY post_id DESC'
         const [result] = await pool.execute(sql, values)
         res.status(200).json({res:result})
     }

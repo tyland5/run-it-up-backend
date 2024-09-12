@@ -43,12 +43,12 @@ router.get("/getBasicUserInfo", checkIfLoggedIn, async (req, res)=>{
 
 })
 
-router.get("/getUserInfo", async (req, res)=>{
+router.get("/getUserInfo", checkIfLoggedIn, async (req, res)=>{
     
     try{
       let uid = req.query.uid;
 
-      const sql = 'SELECT * FROM users WHERE uid = ?';
+      const sql = 'SELECT uid, username, name, email, bio, pfp FROM users WHERE uid = ?';
       const values = [uid];
       const [result] = await pool.execute(sql, values);
 
@@ -118,8 +118,11 @@ router.post("/changeUserInfo", [verifyCSRF, upload.array('media', 1)], async (re
           return
         }
 
+        // delete the prev image if it's not the placeholder
         pfpName = "images/" + pfpName[0].pfp.substring(32)
-        unlinkAsync(pfpName)
+        if(!pfpName.endsWith('placeholder.jpg')){
+          unlinkAsync(pfpName)
+        }
 
         const image = process.env.FILE_SERVER + "/images/"+ req.files[0].filename;
         sql += ", pfp=?";

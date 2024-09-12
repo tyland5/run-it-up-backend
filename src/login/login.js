@@ -104,8 +104,8 @@ router.get('/confirmEmail', async (req, res) => {
         service: 'gmail',
         port: 465,
         secure: true,
-        logger: true,
-        debug: true,
+        //logger: true,
+       // debug: true,
         secureConnection: false,
         auth: {
           user: process.env.COMPANY_EMAIL,
@@ -136,10 +136,10 @@ router.get('/confirmEmail', async (req, res) => {
 
 router.post('/register', async (req, res)=>{
     const account = req.body.accountDetails
-
+    const placeholder_pfp = process.env.FILE_SERVER + "/images/pfp_placeholder.jpg"
     try{
-        const sql = 'INSERT INTO users (username, name, email, password) VALUES (?, ?, ?, ?);';
-        const values = [account.username, account.name, account.email, crypto.createHash('md5').update(account.password).digest("hex")];
+        const sql = 'INSERT INTO users (username, name, email, password, pfp) VALUES (?, ?, ?, ?, ?);';
+        const values = [account.username, account.name, account.email, crypto.createHash('md5').update(account.password).digest("hex"), placeholder_pfp];
         await pool.execute(sql, values)
 
         res.status(200).send();
