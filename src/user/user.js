@@ -206,8 +206,7 @@ router.get('/getFollowersFollowing', checkIfLoggedIn, async (req, res) =>{
 })
 
 router.get("/logout", async (req, res)=>{
-    delete req.session.uid
-    delete req.session.csrf
+    req.session.destroy() // removes from db
     res.status(200).send();
 })
 

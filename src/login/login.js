@@ -19,8 +19,6 @@ router.post('/checkCredentials', async (req, res) => {
         const [result] = await pool.execute(sql, values)
 
         if(result.length >= 1){
-            // refresh the session
-            req.session.touch()
             
             // this adds additional information to the session. not the browser cookie, which only holds the encrypted session id
             req.session.uid = result[0].uid
